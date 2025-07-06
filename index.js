@@ -1,6 +1,8 @@
 const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 const express = require('express');
+const fs = require('fs');
+const { createObjectCsvWriter } = require('csv-writer');
 
 const app = express();
 app.use(express.json());
@@ -11,12 +13,12 @@ const WEBHOOK_URL = process.env.WEBHOOK_URL;
 const bot = new TelegramBot(TELEGRAM_TOKEN);
 
 // Thiết lập webhook
-bot.setWebHook(`${WEBHOOK_URL}/webhook`);
+bot.setWebHook(`https://telegram-index-checker.onrender.com/webhook`);
 
-// Danh sách API keys của SerpAPI (loại bỏ trùng lặp)
+// Danh sách API keys của SerpAPI
 const apiKeys = [
-  process.env.SERPAPI_KEY_2, // Key mới
-  process.env.SERPAPI_KEY_1  // Key cũ
+  process.env.SERPAPI_KEY_1, // Key cũ
+  process.env.SERPAPI_KEY_2  // Key mới
 ];
 let currentApiKeyIndex = 0;
 
@@ -50,7 +52,7 @@ async function getNextApiKey() {
     currentApiKeyIndex = (currentApiKeyIndex + 1) % apiKeys.length;
     console.log(`Switching to API key ${currentApiKeyIndex + 1}`);
   }
-  throw new Error('All API keys have exhausted their quotas');
+  throw new Error('Hết token');
 }
 
 // Hàm kiểm tra index của một URL
@@ -79,6 +81,26 @@ async function checkIndex(url, apiKey) {
     console.error(`Error checking index for ${url}: ${error.message}, Status: ${error.response?.status}, Data: ${JSON.stringify(error.response?.data)}`);
     return { url, isIndex: false, status: 'Error' };
   }
+}
+
+// Hàm tạo và gửi file CSV
+async function createAndSendCsv(chatId, results) {
+  const csvWriter = createObjectCsvWriter({
+    path: 'results.csv',
+    header: [
+      { id: 'url', title: 'URL' },
+      { id: 'status', title: 'Status' }
+    ]
+  });
+
+  const records = results.map(result => ({
+    url: result.url,
+    status: result.isIndex ? 'Indexed' : 'Not Indexed'
+  }));
+
+  await csvWriter.writeRecords(records);
+  await bot.sendDocument(chatId, 'results.csv');
+  fs.unlinkSync('results.csv'); // Xóa file sau khi gửi
 }
 
 // Webhook endpoint
@@ -123,14 +145,19 @@ bot.on('text', async (msg) => {
     try {
       const apiKey = await getNextApiKey();
       const result = await checkIndex(url, apiKey);
-      results.push(`${url}: ${result.isIndex ? 'Indexed' : 'Not Indexed'}`);
+      results.push({ url, isIndex: result.isIndex });
     } catch (error) {
-      results.push(`${url}: Error - ${error.message}`);
+      results.push({ url, isIndex: false, error: error.message });
     }
     await new Promise(resolve => setTimeout(resolve, 3000));
   }
 
-  bot.sendMessage(chatId, results.join('\n'));
+  if (urls.length === 1) {
+    const result = results[0];
+    bot.sendMessage(chatId, result.isIndex ? 'Indexed' : result.error || 'Not Indexed');
+  } else {
+    await createAndSendCsv(chatId, results);
+  }
 });
 
 // Xử lý file .txt
@@ -157,14 +184,19 @@ bot.on('document', async (msg) => {
       try {
         const apiKey = await getNextApiKey();
         const result = await checkIndex(url, apiKey);
-        results.push(`${url}: ${result.isIndex ? 'Indexed' : 'Not Indexed'}`);
+        results.push({ url, isIndex: result.isIndex });
       } catch (error) {
-        results.push(`${url}: Error - ${error.message}`);
+        results.push({ url, isIndex: false, error: error.message });
       }
       await new Promise(resolve => setTimeout(resolve, 3000));
     }
 
-    bot.sendMessage(chatId, results.join('\n'));
+    if (urls.length === 1) {
+      const result = results[0];
+      bot.sendMessage(chatId, result.isIndex ? 'Indexed' : result.error || 'Not Indexed');
+    } else {
+      await createAndSendCsv(chatId, results);
+    }
   } catch (error) {
     bot.sendMessage(chatId, `Lỗi khi xử lý file: ${error.message}`);
   }
