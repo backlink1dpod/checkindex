@@ -15,20 +15,26 @@ bot.setWebHook(`${WEBHOOK_URL}/webhook`);
 
 // Danh sách API keys của SerpAPI
 const apiKeys = [
-  process.env.SERPAPI_KEY_1,
-  process.env.SERPAPI_KEY_2 || process.env.SERPAPI_KEY_1,
-  process.env.SERPAPI_KEY_3 || process.env.SERPAPI_KEY_1
+  process.env.SERPAPI_KEY_2, // Ưu tiên key mới
+  process.env.SERPAPI_KEY_3 || process.env.SERPAPI_KEY_2,
+  process.env.SERPAPI_KEY_1
 ];
 let currentApiKeyIndex = 0;
 
 // Hàm kiểm tra quota của API key
 async function checkApiQuota(apiKey) {
   try {
+    console.log(`Checking quota for API key ${apiKey.slice(0, 10)}...`);
     const response = await axios.get(`https://serpapi.com/account.json?api_key=${apiKey}`);
-    console.log(`Quota for API key ${apiKey.slice(0, 10)}...: ${response.data.searches_left}`);
-    return response.data.searches_left || 0;
+    console.log(`Quota response for ${apiKey.slice(0, 10)}...: ${JSON.stringify(response.data)}`);
+    if (response.data && typeof response.data.total_searches_left === 'number') {
+      return response.data.total_searches_left;
+    } else {
+      console.error(`Invalid quota response for ${apiKey.slice(0, 10)}...: ${JSON.stringify(response.data)}`);
+      return 0;
+    }
   } catch (error) {
-    console.error(`Error checking quota for API key ${apiKey.slice(0, 10)}...: ${error.message}`);
+    console.error(`Error checking quota for ${apiKey.slice(0, 10)}...: ${error.message}, Status: ${error.response?.status}, Data: ${JSON.stringify(error.response?.data)}`);
     return 0;
   }
 }
@@ -51,6 +57,7 @@ async function getNextApiKey() {
 // Hàm kiểm tra index của một URL
 async function checkIndex(url, apiKey) {
   try {
+    console.log(`Checking index for ${url} with API key ${apiKey.slice(0, 10)}...`);
     const response = await axios.get('https://serpapi.com/search.json', {
       params: {
         q: url,
@@ -70,7 +77,7 @@ async function checkIndex(url, apiKey) {
     console.log(`Checked index for ${url}: ${isIndex ? 'Indexed' : 'Not Indexed'}`);
     return { url, isIndex, status: response.status };
   } catch (error) {
-    console.error(`Error checking index for ${url}: ${error.message}`);
+    console.error(`Error checking index for ${url}: ${error.message}, Status: ${error.response?.status}, Data: ${JSON.stringify(error.response?.data)}`);
     return { url, isIndex: false, status: 'Error' };
   }
 }
@@ -119,7 +126,7 @@ bot.on('text', async (msg) => {
     try {
       const apiKey = await getNextApiKey();
       const result = await checkIndex(url, apiKey);
-      results.push(`${url}: ${result.isIndex ? 'Indexedබ: Indexed' : 'Not Indexed'}`);
+      results.push(`${url}: ${result.isIndex ? 'Indexed' : 'Not Indexed'}`);
     } catch (error) {
       results.push(`${url}: Error - ${error.message}`);
     }
@@ -167,7 +174,7 @@ bot.on('document', async (msg) => {
 });
 
 // Khởi động server
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
