@@ -1,6 +1,9 @@
 {
   "name": "telegram-index-checker",
   "version": "1.0.0",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "node-telegram-bot-api": "^0.66.0",
     "axios": "^1.7.2",
