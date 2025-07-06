@@ -13,11 +13,10 @@ const bot = new TelegramBot(TELEGRAM_TOKEN);
 // Thiết lập webhook
 bot.setWebHook(`${WEBHOOK_URL}/webhook`);
 
-// Danh sách API keys của SerpAPI
+// Danh sách API keys của SerpAPI (loại bỏ trùng lặp)
 const apiKeys = [
-  process.env.SERPAPI_KEY_2, // Ưu tiên key mới
-  process.env.SERPAPI_KEY_3 || process.env.SERPAPI_KEY_2,
-  process.env.SERPAPI_KEY_1
+  process.env.SERPAPI_KEY_2, // Key mới
+  process.env.SERPAPI_KEY_1  // Key cũ
 ];
 let currentApiKeyIndex = 0;
 
@@ -39,7 +38,7 @@ async function checkApiQuota(apiKey) {
   }
 }
 
-// Hàm chọn API key tiếp theo có quota
+// Hàm chọn API key có quota
 async function getNextApiKey() {
   const initialIndex = currentApiKeyIndex;
   for (let i = 0; i < apiKeys.length; i++) {
@@ -100,11 +99,9 @@ bot.onText(/\/start/, (msg) => {
 bot.onText(/\/quota/, async (msg) => {
   const chatId = msg.chat.id;
   console.log(`Received /quota from chat ${chatId}`);
-  const quotas = await Promise.all(apiKeys.map(async (key, index) => {
-    const quota = await checkApiQuota(key);
-    return `API Key ${index + 1}: ${quota} searches left`;
-  }));
-  bot.sendMessage(chatId, quotas.join('\n'));
+  const currentKey = apiKeys[currentApiKeyIndex];
+  const quota = await checkApiQuota(currentKey);
+  bot.sendMessage(chatId, `API Key ${currentApiKeyIndex + 1}: ${quota} searches left`);
 });
 
 // Xử lý tin nhắn chứa URL
