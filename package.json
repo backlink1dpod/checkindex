@@ -1,13 +1,10 @@
 {
-  "name": "telegram-index-checker",
+  "name": "google-index-checker",
   "version": "1.0.0",
-  "scripts": {
-    "start": "node index.js"
-  },
+  "main": "check-index.js",
   "dependencies": {
-    "node-telegram-bot-api": "^0.66.0",
-    "axios": "^1.7.2",
-    "express": "^4.19.2",
-    "csv-writer": "^1.6.0"
+    "axios": "^1.6.8",
+    "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0"
   }
 }
