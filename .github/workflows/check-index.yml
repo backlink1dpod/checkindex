@@ -26,7 +26,7 @@ jobs:
         run: node check-index.js
 
       - name: Upload output.xlsx as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@f5f66efba01b62023239e25c6e5ea84d4e0f6f7b
         with:
           name: index-check-result
           path: output.xlsx
