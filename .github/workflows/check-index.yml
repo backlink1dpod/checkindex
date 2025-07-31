@@ -17,16 +17,16 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: |
-          npm install dotenv axios exceljs
+        run: npm ci
 
       - name: Run index check script
         env:
           SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
         run: node check-index.js
 
-      - name: Upload output.xlsx as artifact
-        uses: actions/upload-artifact@f5f66efba01b62023239e25c6e5ea84d4e0f6f7b
+      - name: Upload result artifact
+        uses: actions/upload-artifact@v4
         with:
           name: index-check-result
           path: output.xlsx
+          retention-days: 7
